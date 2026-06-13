@@ -268,6 +268,19 @@ for prompt in prompts/milestone-*.md; do
 
   generate_handoff "$name" "$prompt"
 
+  echo "=== Archiving completed prompt for $name ==="
+  mkdir -p prompts/done
+  archived_prompt="prompts/done/$(basename "$prompt")"
+
+  if [ -e "$archived_prompt" ]; then
+    timestamp="$(date +%Y%m%d-%H%M%S)"
+    archived_prompt="prompts/done/${name}-${timestamp}.md"
+  fi
+
+  mv "$prompt" "$archived_prompt"
+  echo "Archived prompt:"
+  echo "  $archived_prompt"
+
   if ! git diff --quiet || ! git diff --cached --quiet; then
     git add .
     git commit -m "$name"
