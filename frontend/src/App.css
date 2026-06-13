@@ -103,12 +103,131 @@
   font-size: 0.8rem;
   cursor: pointer;
   flex-shrink: 0;
-  margin-left: auto;
 }
 
 .items-card li button:hover {
   background: #c62828;
   color: #fff;
+}
+
+.item-name {
+  flex: 1;
+  cursor: pointer;
+}
+
+.item-name:hover {
+  color: #1976d2;
+}
+
+.btn-edit {
+  margin-left: auto;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid #1976d2;
+  border-radius: 4px;
+  background: transparent;
+  color: #1976d2;
+  font-size: 0.8rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.btn-edit:hover {
+  background: #1976d2;
+  color: #fff;
+}
+
+.btn-delete {
+  margin-left: 0.3rem;
+}
+
+/* Edit mode */
+.edit-input {
+  padding: 0.2rem 0.4rem;
+  border: 1px solid #1976d2;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  flex: 1;
+  min-width: 120px;
+}
+
+.btn-save {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid #2e7d32;
+  border-radius: 4px;
+  background: transparent;
+  color: #2e7d32;
+  font-size: 0.8rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: 0.3rem;
+}
+
+.btn-save:hover:not(:disabled) {
+  background: #2e7d32;
+  color: #fff;
+}
+
+.btn-save:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-cancel {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid #888;
+  border-radius: 4px;
+  background: transparent;
+  color: #888;
+  font-size: 0.8rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: 0.3rem;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: #888;
+  color: #fff;
+}
+
+.btn-cancel:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Delete confirmation */
+.confirm-text {
+  flex: 1;
+  font-size: 0.9rem;
+  color: #c62828;
+}
+
+.btn-confirm-delete {
+  margin-left: 0.3rem;
+}
+
+.btn-cancel-delete {
+  margin-left: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid #888;
+  border-radius: 4px;
+  background: transparent;
+  color: #888;
+  font-size: 0.8rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.btn-cancel-delete:hover {
+  background: #888;
+  color: #fff;
+}
+
+/* Empty state */
+.empty-message {
+  color: #888;
+  font-style: italic;
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
 }
 
 .item-done {

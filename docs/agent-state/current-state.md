@@ -17,10 +17,15 @@ This repository is an **agent-driven CI/CD harness** that now contains a **full-
 
 ## Architecture Notes
 
-- **Frontend** (`frontend/`): Vite dev server on port 5173, proxies `/api` to backend port 8000. Production build outputs to `frontend/dist/`. Scripts: `dev`, `build` (tsc + vite build), `lint` (eslint flat config), `typecheck` (tsc --noEmit), `test` (vitest run). Components: `App.tsx` (landing page + status), `ItemsList.tsx` (fetches/displays `/api/items`, includes inline creation form, inline toggle and delete controls).
+- **Frontend** (`frontend/`): Vite dev server on port 5173, proxies `/api` to backend port 8000. Production build outputs to `frontend/dist/`. Scripts: `dev`, `build` (tsc + vite build), `lint` (eslint flat config), `typecheck` (tsc --noEmit), `test` (vitest run). Components:
+  - `App.tsx` — Landing page that fetches `/api/health` on mount, displays API status (ok / error / pending), and renders `<ItemsList />` in a side-by-side card layout.
+  - `ItemsList.tsx` — Container component: fetches `/api/items` on mount, manages items state, provides `handleSubmit` (POST), `handleToggle` (PATCH done), `handleDelete` (DELETE), and `handleUpdate` (PATCH name) callbacks. Renders loading/error/empty/success states, the inline creation form, and delegates row rendering to `<ItemRow />`. Returns a `Promise<boolean>` from `handleUpdate` so the child can react to save success/failure.
+  - `ItemRow.tsx` — Presentational row component with three visual modes:
+    - **Display**: checkbox (for toggle) + item name + Edit button + Delete button
+    - **Editing**: disabled checkbox + text input (pre-filled with current name) + Save button + Cancel button. Save calls `onUpdate` (PATCH name) and exits edit mode on success.
+    - **Delete confirmation**: confirmation text ("Delete "name"?") + Confirm Delete button (triggers actual DELETE) + Cancel button (returns to display mode).
+  - Styles in `App.css` cover all three modes, including `.btn-edit`, `.btn-save`, `.btn-cancel`, `.btn-confirm-delete`, `.btn-cancel-delete`, `.btn-delete`, `.edit-input`, `.confirm-text`, `.empty-message`, disabled states, and hover effects.
 - **Backend** (`backend/`): FastAPI app split across `main.py` (routes + models) and `storage.py` (SQLite persistence). CORS configured for `http://localhost:5173`. Endpoints: `GET /api/health` → `{"status": "ok"}`, `GET /api/ready` → `{"status": "ok", "database": "connected"}` (verifies SQLite connectivity; returns 503 if the database is unreachable), `GET /api/items` → `{"items": [...]}`, `POST /api/items` (body: `{name, done?}`, returns 201), `PATCH /api/items/{item_id}` (body: `{name?, done?}`, partial update), `DELETE /api/items/{item_id}` (returns deleted item). Items stored in SQLite (`./items.db` by default, overridable via `ITEMS_DB_PATH` env var) with auto-incrementing IDs. Database initialised and seeded with four default starter items on first import. Pydantic models: `CreateItemRequest` (name: required, done: optional), `UpdateItemRequest` (name: optional, done: optional — both with client-controlled semantics for partial updates).
-- **App.tsx** (`frontend/src/App.tsx`): Landing page that fetches `/api/health` on mount, displays API status (ok / error / pending), and renders `<ItemsList />` in a side-by-side card layout.
-- **ItemsList.tsx** (`frontend/src/ItemsList.tsx`): Full CRUD UI for items. Fetches `/api/items` on mount, renders loading/error/success states as a `<ul>`. Features: inline form (text input + "Add" button) to create items via POST; checkbox on each item to toggle done status via PATCH; "Delete" button on each item to remove via DELETE; per-action error messages rendered as `<p role="alert">`. Done items styled with `.item-done` (green, line-through); pending items styled with `.item-pending`.
 - **Harness scripts** auto-detect ecosystem in subdirectories (`frontend/`, `backend/`), not in the repo root.
 - **`.env.agent`** (gitignored, copied from `.env.agent.example`) controls branch name, permission mode, port (default 8000), health path (`/api/health`), and deployment flags.
 
@@ -34,7 +39,21 @@ This repository is an **agent-driven CI/CD harness** that now contains a **full-
 - **Milestone 06** — Complete. Item update and delete mutations added: `PATCH /api/items/{item_id}` (partial update via `UpdateItemRequest`), `DELETE /api/items/{item_id}`. 7 new backend tests (4 PATCH + 3 DELETE), 6 new frontend tests for toggle/delete controls and error handling. Inline checkbox toggle and delete button in `ItemsList.tsx`. Full CRUD now supported end-to-end.
 - **Milestone 07** — Complete. SQLite persistence added: `backend/storage.py` module with `init_db`, `seed_if_empty`, `get_items`, `create_item`, `update_item`, `delete_item`. Database path configurable via `ITEMS_DB_PATH` env var (default `./items.db`). `conftest.py` isolates tests with a temp database. 6 new persistence tests (`test_persistence.py`). Existing tests updated to verify state via API instead of direct `ITEMS` access. Items survive server restarts when the same database path is used.
 - **Milestone 08** — Complete. Production-readiness gates added: `GET /api/ready` endpoint with 2 tests, enhanced `smoke-local.sh` (health + readiness + items API checks), GitHub Actions CI workflow (`.github/workflows/ci.yml`) covering frontend and backend validation. React act() warning fixed in loading-state test.
+- **Milestone 09** — Complete. UX polish without backend changes:
+  - Extracted `ItemRow.tsx` as a separate presentational component with three visual modes (display, editing, delete confirmation).
+  - Added inline name editing via existing PATCH endpoint — Edit button → text input + Save/Cancel.
+  - Added delete confirmation — Delete button → "Delete 'name'?" with Confirm Delete/Cancel.
+  - Improved empty state — "No items yet. Add one above." message when items list is empty.
+  - Polished CSS: new button classes for edit/save/cancel/confirm-delete/cancel-delete, disabled states, hover effects, edit input styling, confirmation text styling, empty message styling.
+  - 6 new frontend tests: inline editing (enter edit, save, cancel, error on update failure) + delete confirmation (confirm, cancel). ItemsList tests grew from 14 to 20, total frontend tests from 18 to 24. Backend unchanged (22 tests).
 - **Deployment** — Disabled (`DEPLOY_STAGING=false` in `.env.agent`).
+
+## Test Counts
+
+| Suite | Count | Breakdown |
+|---|---|---|
+| Backend (pytest) | 22 | 1 health + 2 readiness + 13 items + 6 persistence |
+| Frontend (Vitest) | 24 | 4 App + 20 ItemsList |
 
 ## Validation Commands
 
@@ -49,23 +68,24 @@ This repository is an **agent-driven CI/CD harness** that now contains a **full-
 ## Quick Test Commands
 
 ```bash
-cd frontend && npm test       # Frontend tests: 18 (4 App + 14 ItemsList)
+cd frontend && npm test       # Frontend tests: 24 (4 App + 20 ItemsList)
 cd backend && source .venv/bin/activate && pytest  # Backend tests: 22 (1 health + 2 readiness + 13 items + 6 persistence)
 ```
 
 ## Known Issues
 
-- **npm vulnerabilities**: 2 high severity vulnerabilities reported on `npm install`. May need `npm audit fix` in a future milestone.
-- **Staging deployment**: Not configured (`DEPLOY_STAGING=false`, staging env vars empty).
+- **npm vulnerabilities**: 2 high severity vulnerabilities reported on `npm install`. Targeted by milestone-10.
+- **Starlette `httpx` deprecation**: `starlette.testclient` prefers `httpx2` over `httpx`. Currently using `httpx>=0.28.0` in `requirements.txt`. The deprecation warning is non-blocking. Targeted by milestone-10.
+- **Staging deployment**: Not configured (`DEPLOY_STAGING=false`, staging env vars empty). Targeted by milestone-11.
 - **smoke-local.sh non-reload mode**: Starts uvicorn without `--reload` since it's a one-shot health check, not a dev server.
-- **Starlette TestClient uses httpx, not httpx2**: `starlette.testclient` prefers `httpx2` over `httpx`. Currently using `httpx>=0.28.0` in `requirements.txt`. The deprecation warning is non-blocking but should be addressed when `httpx2` stabilizes.
-- **SQLite persistence added (milestone-07)**: Items persist in `./items.db` (configurable via `ITEMS_DB_PATH`). To reset, delete the database file. Different `ITEMS_DB_PATH` values effectively create separate databases.
-- **Inline form and controls in ItemsList**: The creation form, toggle checkbox, and delete button all live inside `ItemsList.tsx` rather than separate components. This is acceptable at current complexity but should be extracted if component size grows (e.g., inline editing, confirmation dialogs, or validation feedback).
 - **CI detects npm vulnerabilities but does not fail on them**: The GitHub Actions workflow runs `npm ci` which reports the 2 high-severity advisories but does not block the pipeline.
+- **Per-request SQLite connections**: Fine for low-traffic dev; connection pooling would help under concurrency.
 
 ## Next Recommended Milestone
 
-**Milestone 09 — Error handling and UX polish.** Potential areas: add inline editing for item names, confirmation dialogs before delete, improved error boundary coverage, input validation feedback on the frontend, or addressing the npm audit vulnerabilities. The specific scope should be defined in a new milestone prompt.
+**Milestone 10 — Dependency and Security Hardening** (`prompts/milestone-10.md`): Investigate and safely reduce npm audit warnings and address the Starlette `httpx`/`httpx2` deprecation. Use safe remediation (`npm audit fix` without `--force`, targeted non-breaking upgrades). Document any vulnerabilities that cannot be safely fixed. Preserve all application behavior and tests.
+
+Milestone 11 (`prompts/milestone-11.md`) follows with staging/deployment readiness hardening.
 
 ## Rules for the Next Agent
 
@@ -73,8 +93,11 @@ cd backend && source .venv/bin/activate && pytest  # Backend tests: 22 (1 health
 - Do NOT hardcode secrets.
 - Do NOT disable tests, linting, type checks, or build checks to make the pipeline pass.
 - Do NOT remove tests to make the pipeline pass.
+- Do NOT use `npm audit fix --force`.
 - Prefer small, reversible, testable changes.
 - Follow existing project conventions.
 - Before editing, read `docs/agent-state/current-state.md` and relevant milestone files in `docs/agent-state/milestones/`.
 - The external runner (`run-milestones.sh`) owns deployment — do not deploy manually.
 - The frontend is in `frontend/`, backend in `backend/` — scripts reference these subdirectories, not the repo root.
+- `ItemRow.tsx` is the row-level presentational component; `ItemsList.tsx` is the container. Keep this separation — add new per-item features to `ItemRow.tsx`.
+- When adding tests, use `fireEvent` for all interactions, `aria-label` for targeting, and progressive mock helpers as established in `ItemsList.test.tsx`.

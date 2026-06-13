@@ -1,4 +1,5 @@
 import { useState, useEffect, type FormEvent } from "react";
+import ItemRow from "./ItemRow";
 
 interface Item {
   id: number;
@@ -96,30 +97,50 @@ function ItemsList() {
       });
   };
 
+  const handleUpdate = (item: Item, name: string): Promise<boolean> => {
+    setActionError(null);
+
+    return fetch(`/api/items/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((updated: Item) => {
+        setItems((prev) =>
+          prev.map((i) => (i.id === updated.id ? updated : i)),
+        );
+        return true;
+      })
+      .catch((err: Error) => {
+        setActionError(`Failed to update item: ${err.message}`);
+        return false;
+      });
+  };
+
   if (loading) return <p>Loading items...</p>;
   if (error) return <p role="alert">Error loading items: {error}</p>;
 
   return (
     <div>
-      <ul>
-        {items.map((item) => (
-          <li key={item.id} className={item.done ? "item-done" : "item-pending"}>
-            <input
-              type="checkbox"
-              checked={item.done}
-              onChange={() => handleToggle(item)}
-              aria-label={`Toggle ${item.name}`}
+      {items.length === 0 ? (
+        <p className="empty-message">No items yet. Add one above.</p>
+      ) : (
+        <ul>
+          {items.map((item) => (
+            <ItemRow
+              key={item.id}
+              item={item}
+              onToggle={handleToggle}
+              onDelete={handleDelete}
+              onUpdate={handleUpdate}
             />
-            {item.name}
-            <button
-              onClick={() => handleDelete(item)}
-              aria-label={`Delete ${item.name}`}
-            >
-              Delete
-            </button>
-          </li>
-        ))}
-      </ul>
+          ))}
+        </ul>
+      )}
 
       {actionError && <p role="alert">{actionError}</p>}
 
