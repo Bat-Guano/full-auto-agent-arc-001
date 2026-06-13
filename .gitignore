@@ -1,0 +1,12 @@
+
+# Agent automation logs and local failure context
+agent-logs/
+*.claude.log
+*.validate.log
+*.deploy.log
+*.smoke.log
+*.server-tail.log
+*.failure-context.md
+
+# Local agent environment
+.env.agent
