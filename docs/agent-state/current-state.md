@@ -10,12 +10,14 @@ This repository is an **agent-driven CI/CD harness** that now contains a **full-
 |---|---|---|
 | Frontend | Vite 7 + React 19 + TypeScript 5.9 | `frontend/package.json`, `frontend/vite.config.ts` |
 | Backend | FastAPI 0.136 + Python 3.12 + Uvicorn 0.49 | `backend/main.py`, `backend/requirements.txt` |
-| Frontend package manager | npm | `frontend/package.json` (no lockfile committed) |
+| Frontend testing | Vitest 3 + React Testing Library 16 + jsdom 26 | `frontend/src/App.test.tsx`, `frontend/src/test-setup.ts` |
+| Backend testing | pytest 8 + httpx + FastAPI TestClient | `backend/test_health.py` |
+| Frontend package manager | npm | `frontend/package.json` (lockfile committed) |
 | Backend package manager | pip + venv | `backend/requirements.txt` |
 
 ## Architecture Notes
 
-- **Frontend** (`frontend/`): Vite dev server on port 5173, proxies `/api` to backend port 8000. Production build outputs to `frontend/dist/`. Scripts: `dev`, `build` (tsc + vite build), `lint` (eslint flat config), `typecheck` (tsc --noEmit).
+- **Frontend** (`frontend/`): Vite dev server on port 5173, proxies `/api` to backend port 8000. Production build outputs to `frontend/dist/`. Scripts: `dev`, `build` (tsc + vite build), `lint` (eslint flat config), `typecheck` (tsc --noEmit), `test` (vitest run).
 - **Backend** (`backend/`): Single-file FastAPI app in `main.py`. CORS configured for `http://localhost:5173`. Only endpoint: `GET /api/health` → `{"status": "ok"}`.
 - **App.tsx** (`frontend/src/App.tsx`): Landing page that fetches `/api/health` on mount and displays API status (ok / error / pending).
 - **Harness scripts** auto-detect ecosystem in subdirectories (`frontend/`, `backend/`), not in the repo root.
@@ -24,29 +26,36 @@ This repository is an **agent-driven CI/CD harness** that now contains a **full-
 ## Implementation Status
 
 - **Milestone 01** — Complete. Repo inspection, created `docs/agent-notes.md`.
-- **Milestone 02** — Complete. Scaffold created: frontend builds, backend health endpoint works, scripts updated, docs written. **No pytest tests exist yet** (non-blocking; harness treats missing pytest as `|| true`).
+- **Milestone 02** — Complete. Scaffold created: frontend builds, backend health endpoint works, scripts updated, docs written.
+- **Milestone 03** — Complete. Test foundation added: 3 frontend component tests (Vitest + React Testing Library), 1 backend health endpoint test (pytest + TestClient), test deps added to both package files, validate-local.sh runs tests as hard requirements, documentation updated.
 - **Deployment** — Disabled (`DEPLOY_STAGING=false` in `.env.agent`).
 
 ## Validation Commands
 
 | Command | Purpose |
 |---|---|
-| `scripts/validate-local.sh` | Build + lint both `frontend/` (npm install, lint, typecheck, build) and `backend/` (pip install, pytest if present) |
+| `scripts/validate-local.sh` | Full validation: frontend (npm install, lint, typecheck, test, build) + backend (venv setup, pip install, pytest) |
 | `scripts/smoke-local.sh` | Start backend on port 8000, poll `/api/health` for up to 60s |
 | `scripts/run-milestones.sh` | Run all milestones sequentially |
 | `scripts/deploy-staging.sh` | Push branch, SSH deploy, build, restart via pm2 (disabled) |
 | `scripts/smoke-staging.sh` | Poll staging health endpoint (disabled) |
 
+## Quick Test Commands
+
+```bash
+cd frontend && npm test       # Frontend tests (Vitest + React Testing Library)
+cd backend && source .venv/bin/activate && pytest  # Backend tests (pytest)
+```
+
 ## Known Issues
 
-- **No pytest tests**: `backend/requirements.txt` does not include `pytest`. `validate-local.sh` runs `.venv/bin/pytest || true` which silently passes. Add `pytest` to requirements.txt and write tests before milestone-03 validation.
 - **npm vulnerabilities**: 2 high severity vulnerabilities reported on `npm install`. May need `npm audit fix` in a future milestone.
-- **smoke-local.sh venv handling**: Script now correctly creates venv and installs deps before starting uvicorn, but the initial milestone-02 run required a repair pass because the original smoke script tried `python3 -m uvicorn` without ensuring the venv was set up. Current version has proper fallback logic — if `requirements.txt` exists and `.venv/bin/uvicorn` is missing, it auto-creates the venv.
 - **Staging deployment**: Not configured (`DEPLOY_STAGING=false`, staging env vars empty).
+- **smoke-local.sh non-reload mode**: Starts uvicorn without `--reload` since it's a one-shot health check, not a dev server.
 
 ## Next Recommended Milestone
 
-**Milestone 03 — Add backend tests and frontend component tests.** Write pytest tests for the `/api/health` endpoint (and any new endpoints). Add Vitest or similar for frontend component tests. Ensure `validate-local.sh` catches real failures.
+**Milestone 04 — Define the application domain.** Add at least one domain-specific API endpoint (e.g., `GET /api/items` or similar) with corresponding tests, and wire it into the frontend with a basic UI component. Use TDD — write the backend test first, then the endpoint, then the frontend test, then the UI.
 
 ## Rules for the Next Agent
 

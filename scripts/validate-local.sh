@@ -43,13 +43,13 @@ if [ -f "$ROOT_DIR/backend/pyproject.toml" ] || [ -f "$ROOT_DIR/backend/requirem
 
   if [ -f pyproject.toml ] && command -v uv >/dev/null 2>&1; then
     uv sync || true
-    uv run pytest || true
+    uv run pytest
   elif [ -f requirements.txt ]; then
     if [ ! -d .venv ]; then
       python3 -m venv .venv
     fi
     ./.venv/bin/pip install -r requirements.txt
-    ./.venv/bin/pytest || true
+    ./.venv/bin/pytest
   fi
 
   echo "--- Backend validation complete ---"

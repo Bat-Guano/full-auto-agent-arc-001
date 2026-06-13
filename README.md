@@ -33,10 +33,17 @@ cd frontend
 npm run build
 ```
 
+## Testing
+
+```bash
+cd frontend && npm test       # Frontend tests (Vitest + React Testing Library)
+cd backend && pytest          # Backend tests (pytest + FastAPI TestClient)
+```
+
 ## Validation
 
 ```bash
-./scripts/validate-local.sh   # Build + lint both frontend and backend
+./scripts/validate-local.sh   # Build + lint + test both frontend and backend
 ./scripts/smoke-local.sh      # Start backend and check health endpoint
 ```
 

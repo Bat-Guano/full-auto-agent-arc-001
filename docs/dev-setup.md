@@ -15,17 +15,19 @@ This document explains how to run the application locally for development.
 my-app/
 ├── frontend/          # Vite + React + TypeScript
 │   ├── src/
-│   │   ├── App.tsx    # Main app component
-│   │   ├── App.css    # App styles
-│   │   ├── main.tsx   # React entry point
-│   │   └── index.css  # Global styles
+│   │   ├── App.tsx        # Main app component
+│   │   ├── App.test.tsx   # App component tests
+│   │   ├── App.css        # App styles
+│   │   ├── main.tsx       # React entry point
+│   │   └── index.css      # Global styles
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── tsconfig.json
 ├── backend/           # FastAPI + Python
-│   ├── main.py        # API app with /api/health
+│   ├── main.py            # API app with /api/health
+│   ├── test_health.py     # Health endpoint tests
 │   ├── requirements.txt
-│   └── .venv/         # Local Python venv (gitignored)
+│   └── .venv/             # Local Python venv (gitignored)
 ├── scripts/
 │   ├── validate-local.sh  # Build + lint both frontend and backend
 │   └── smoke-local.sh     # Start backend and check health endpoint
@@ -85,6 +87,27 @@ npm run build
 
 Output goes to `frontend/dist/`.
 
+## Running Tests
+
+### Frontend Tests
+
+```bash
+cd frontend
+npm test
+```
+
+Frontend tests use [Vitest](https://vitest.dev/) with [React Testing Library](https://testing-library.com/react) and jsdom. Tests are located alongside source files (e.g., `src/App.test.tsx`).
+
+### Backend Tests
+
+```bash
+cd backend
+source .venv/bin/activate
+pytest
+```
+
+Backend tests use [pytest](https://docs.pytest.org/) and FastAPI's `TestClient`. Tests are located in the `backend/` directory (e.g., `test_health.py`).
+
 ## Running Validation Scripts
 
 ### validate-local.sh
@@ -96,8 +119,8 @@ Validates both frontend and backend:
 ```
 
 This runs:
-- Frontend: `npm install`, `npm run lint`, `npm run typecheck`, `npm run build`
-- Backend: virtualenv setup, `pip install`, `pytest` (if tests exist)
+- Frontend: `npm install`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`
+- Backend: virtualenv setup, `pip install`, `pytest`
 
 ### smoke-local.sh
 
