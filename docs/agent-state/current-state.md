@@ -10,16 +10,16 @@ This repository is an **agent-driven CI/CD harness** that now contains a **full-
 |---|---|---|
 | Frontend | Vite 7 + React 19 + TypeScript 5.9 | `frontend/package.json`, `frontend/vite.config.ts` |
 | Backend | FastAPI 0.136 + Python 3.12 + Uvicorn 0.49 | `backend/main.py`, `backend/requirements.txt` |
-| Frontend testing | Vitest 3 + React Testing Library 16 + jsdom 26 | `frontend/src/App.test.tsx`, `frontend/src/test-setup.ts` |
-| Backend testing | pytest 8 + httpx + FastAPI TestClient | `backend/test_health.py` |
+| Frontend testing | Vitest 3 + React Testing Library 16 + jsdom 26 | `frontend/src/App.test.tsx`, `frontend/src/ItemsList.test.tsx`, `frontend/src/test-setup.ts` |
+| Backend testing | pytest 8 + httpx + FastAPI TestClient | `backend/test_health.py`, `backend/test_items.py` |
 | Frontend package manager | npm | `frontend/package.json` (lockfile committed) |
 | Backend package manager | pip + venv | `backend/requirements.txt` |
 
 ## Architecture Notes
 
-- **Frontend** (`frontend/`): Vite dev server on port 5173, proxies `/api` to backend port 8000. Production build outputs to `frontend/dist/`. Scripts: `dev`, `build` (tsc + vite build), `lint` (eslint flat config), `typecheck` (tsc --noEmit), `test` (vitest run).
-- **Backend** (`backend/`): Single-file FastAPI app in `main.py`. CORS configured for `http://localhost:5173`. Only endpoint: `GET /api/health` → `{"status": "ok"}`.
-- **App.tsx** (`frontend/src/App.tsx`): Landing page that fetches `/api/health` on mount and displays API status (ok / error / pending).
+- **Frontend** (`frontend/`): Vite dev server on port 5173, proxies `/api` to backend port 8000. Production build outputs to `frontend/dist/`. Scripts: `dev`, `build` (tsc + vite build), `lint` (eslint flat config), `typecheck` (tsc --noEmit), `test` (vitest run). Components: `App.tsx` (landing page + status), `ItemsList.tsx` (fetches and displays `/api/items`).
+- **Backend** (`backend/`): Single-file FastAPI app in `main.py`. CORS configured for `http://localhost:5173`. Endpoints: `GET /api/health` → `{"status": "ok"}`, `GET /api/items` → `{"items": [...]}`. Items are hardcoded in-memory (no database).
+- **App.tsx** (`frontend/src/App.tsx`): Landing page that fetches `/api/health` on mount, displays API status (ok / error / pending), and renders `<ItemsList />` in a side-by-side card layout.
 - **Harness scripts** auto-detect ecosystem in subdirectories (`frontend/`, `backend/`), not in the repo root.
 - **`.env.agent`** (gitignored, copied from `.env.agent.example`) controls branch name, permission mode, port (default 8000), health path (`/api/health`), and deployment flags.
 
@@ -28,6 +28,7 @@ This repository is an **agent-driven CI/CD harness** that now contains a **full-
 - **Milestone 01** — Complete. Repo inspection, created `docs/agent-notes.md`.
 - **Milestone 02** — Complete. Scaffold created: frontend builds, backend health endpoint works, scripts updated, docs written.
 - **Milestone 03** — Complete. Test foundation added: 3 frontend component tests (Vitest + React Testing Library), 1 backend health endpoint test (pytest + TestClient), test deps added to both package files, validate-local.sh runs tests as hard requirements, documentation updated.
+- **Milestone 04** — Complete. Domain feature slice added: `GET /api/items` endpoint with pytest test, `ItemsList` component with Vitest tests, wired into `App.tsx`. React act() warnings cleaned up in `App.test.tsx`. TestClient deprecation documented as follow-up.
 - **Deployment** — Disabled (`DEPLOY_STAGING=false` in `.env.agent`).
 
 ## Validation Commands
@@ -52,10 +53,11 @@ cd backend && source .venv/bin/activate && pytest  # Backend tests (pytest)
 - **npm vulnerabilities**: 2 high severity vulnerabilities reported on `npm install`. May need `npm audit fix` in a future milestone.
 - **Staging deployment**: Not configured (`DEPLOY_STAGING=false`, staging env vars empty).
 - **smoke-local.sh non-reload mode**: Starts uvicorn without `--reload` since it's a one-shot health check, not a dev server.
+- **Starlette TestClient uses httpx, not httpx2**: `starlette.testclient` prefers `httpx2` over `httpx`. Currently using `httpx>=0.28.0` in `requirements.txt`. The deprecation warning is non-blocking but should be addressed when `httpx2` stabilizes.
 
 ## Next Recommended Milestone
 
-**Milestone 04 — Define the application domain.** Add at least one domain-specific API endpoint (e.g., `GET /api/items` or similar) with corresponding tests, and wire it into the frontend with a basic UI component. Use TDD — write the backend test first, then the endpoint, then the frontend test, then the UI.
+**Milestone 05 — Add a CRUD mutation.** Add `POST /api/items` to create items, with backend TDD, and a form on the frontend to submit new items. Or address npm vulnerabilities and CI pipeline setup.
 
 ## Rules for the Next Agent
 

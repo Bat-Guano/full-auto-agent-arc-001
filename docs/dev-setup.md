@@ -15,17 +15,20 @@ This document explains how to run the application locally for development.
 my-app/
 ├── frontend/          # Vite + React + TypeScript
 │   ├── src/
-│   │   ├── App.tsx        # Main app component
-│   │   ├── App.test.tsx   # App component tests
-│   │   ├── App.css        # App styles
-│   │   ├── main.tsx       # React entry point
-│   │   └── index.css      # Global styles
+│   │   ├── App.tsx            # Main app component (health + items)
+│   │   ├── App.test.tsx       # App component tests
+│   │   ├── App.css            # App styles (status-card, items-card)
+│   │   ├── ItemsList.tsx      # Items list component (fetches /api/items)
+│   │   ├── ItemsList.test.tsx # ItemsList component tests
+│   │   ├── main.tsx           # React entry point
+│   │   └── index.css          # Global styles
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── tsconfig.json
 ├── backend/           # FastAPI + Python
-│   ├── main.py            # API app with /api/health
+│   ├── main.py            # API app with /api/health and /api/items
 │   ├── test_health.py     # Health endpoint tests
+│   ├── test_items.py      # Items endpoint tests
 │   ├── requirements.txt
 │   └── .venv/             # Local Python venv (gitignored)
 ├── scripts/
@@ -60,6 +63,9 @@ Verify it works:
 ```bash
 curl http://localhost:8000/api/health
 # Expected: {"status":"ok"}
+
+curl http://localhost:8000/api/items
+# Expected: {"items":[{"id":1,"name":"Define project scope","done":true},...]}
 ```
 
 ### 2. Frontend (Vite + React)
@@ -96,7 +102,7 @@ cd frontend
 npm test
 ```
 
-Frontend tests use [Vitest](https://vitest.dev/) with [React Testing Library](https://testing-library.com/react) and jsdom. Tests are located alongside source files (e.g., `src/App.test.tsx`).
+Frontend tests use [Vitest](https://vitest.dev/) with [React Testing Library](https://testing-library.com/react) and jsdom. Tests are located alongside source files (e.g., `src/App.test.tsx`, `src/ItemsList.test.tsx`).
 
 ### Backend Tests
 
@@ -106,7 +112,7 @@ source .venv/bin/activate
 pytest
 ```
 
-Backend tests use [pytest](https://docs.pytest.org/) and FastAPI's `TestClient`. Tests are located in the `backend/` directory (e.g., `test_health.py`).
+Backend tests use [pytest](https://docs.pytest.org/) and FastAPI's `TestClient`. Tests are located in the `backend/` directory (e.g., `test_health.py`, `test_items.py`).
 
 ## Running Validation Scripts
 

@@ -59,6 +59,41 @@
   color: #888;
 }
 
+.items-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem 2rem;
+  min-width: 280px;
+  margin-left: 1.5rem;
+}
+
+.items-card h2 {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  color: #444;
+}
+
+.items-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.items-card li {
+  padding: 0.4rem 0;
+  font-size: 0.95rem;
+}
+
+.item-done {
+  color: #2e7d32;
+  text-decoration: line-through;
+}
+
+.item-pending {
+  color: #333;
+}
+
 .app-footer {
   text-align: center;
   padding: 1.5rem;

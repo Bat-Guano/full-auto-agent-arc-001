@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import "./App.css";
+import ItemsList from "./ItemsList";
 
 interface HealthStatus {
   status: string;
@@ -43,6 +44,11 @@ function App() {
               <span className="status-pending">Checking API health...</span>
             )}
           </div>
+        </section>
+
+        <section className="items-card">
+          <h2>Items</h2>
+          <ItemsList />
         </section>
       </main>
 
