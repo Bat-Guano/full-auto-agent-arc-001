@@ -83,6 +83,32 @@
 .items-card li {
   padding: 0.4rem 0;
   font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.items-card li input[type="checkbox"] {
+  cursor: pointer;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.items-card li button {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid #c62828;
+  border-radius: 4px;
+  background: transparent;
+  color: #c62828;
+  font-size: 0.8rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.items-card li button:hover {
+  background: #c62828;
+  color: #fff;
 }
 
 .item-done {
@@ -122,6 +148,12 @@
 .add-item-form button:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.items-card p[role="alert"] {
+  color: #c62828;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
 }
 
 .add-item-form p[role="alert"] {

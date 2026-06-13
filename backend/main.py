@@ -1,6 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from typing import Optional
 
 app = FastAPI(title="My App API", version="0.1.0")
 
@@ -26,6 +27,11 @@ class CreateItemRequest(BaseModel):
     done: bool = False
 
 
+class UpdateItemRequest(BaseModel):
+    name: Optional[str] = Field(None, min_length=1)
+    done: Optional[bool] = None
+
+
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
@@ -42,3 +48,24 @@ async def create_item(body: CreateItemRequest):
     new_item = {"id": next_id, "name": body.name, "done": body.done}
     ITEMS.append(new_item)
     return new_item
+
+
+@app.patch("/api/items/{item_id}")
+async def update_item(item_id: int, body: UpdateItemRequest):
+    for item in ITEMS:
+        if item["id"] == item_id:
+            if body.name is not None:
+                item["name"] = body.name
+            if body.done is not None:
+                item["done"] = body.done
+            return item
+    raise HTTPException(status_code=404, detail="Item not found")
+
+
+@app.delete("/api/items/{item_id}")
+async def delete_item(item_id: int):
+    for i, item in enumerate(ITEMS):
+        if item["id"] == item_id:
+            removed = ITEMS.pop(i)
+            return removed
+    raise HTTPException(status_code=404, detail="Item not found")

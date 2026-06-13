@@ -13,6 +13,7 @@ function ItemsList() {
   const [newName, setNewName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/items")
@@ -59,6 +60,42 @@ function ItemsList() {
       });
   };
 
+  const handleToggle = (item: Item) => {
+    setActionError(null);
+    const newDone = !item.done;
+
+    fetch(`/api/items/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ done: newDone }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((updated: Item) => {
+        setItems((prev) =>
+          prev.map((i) => (i.id === updated.id ? updated : i)),
+        );
+      })
+      .catch((err: Error) => {
+        setActionError(`Failed to toggle item: ${err.message}`);
+      });
+  };
+
+  const handleDelete = (item: Item) => {
+    setActionError(null);
+
+    fetch(`/api/items/${item.id}`, { method: "DELETE" })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        setItems((prev) => prev.filter((i) => i.id !== item.id));
+      })
+      .catch((err: Error) => {
+        setActionError(`Failed to delete item: ${err.message}`);
+      });
+  };
+
   if (loading) return <p>Loading items...</p>;
   if (error) return <p role="alert">Error loading items: {error}</p>;
 
@@ -67,10 +104,24 @@ function ItemsList() {
       <ul>
         {items.map((item) => (
           <li key={item.id} className={item.done ? "item-done" : "item-pending"}>
+            <input
+              type="checkbox"
+              checked={item.done}
+              onChange={() => handleToggle(item)}
+              aria-label={`Toggle ${item.name}`}
+            />
             {item.name}
+            <button
+              onClick={() => handleDelete(item)}
+              aria-label={`Delete ${item.name}`}
+            >
+              Delete
+            </button>
           </li>
         ))}
       </ul>
+
+      {actionError && <p role="alert">{actionError}</p>}
 
       <form onSubmit={handleSubmit} className="add-item-form">
         <input
