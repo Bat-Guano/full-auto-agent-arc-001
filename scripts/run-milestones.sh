@@ -628,5 +628,9 @@ done
 echo
 echo "=== Milestone run complete ==="
 echo "Current branch: $(git branch --show-current)"
-echo "Push with:"
-echo "  git push -u $REMOTE_NAME $AGENT_BRANCH"
+if [ "$PUSH_AFTER_MILESTONE" = "true" ]; then
+  echo "Auto-publish is enabled; no manual push is needed."
+else
+  echo "Push with:"
+  echo "  git push -u $REMOTE_NAME $AGENT_BRANCH"
+fi
