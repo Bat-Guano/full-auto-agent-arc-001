@@ -1,108 +1,187 @@
-# Troubleshooting Report Template
+/diagnose
 
-This document is used when a milestone fails during validation, deployment, or smoke testing.
+# Troubleshooting Report
 
-The goal is to force a structured troubleshooting subprocess before repair work continues.
+This report is created when an automated milestone phase fails.
 
-## 1. Failure Summary
+It must be completed before repair work continues.
 
-Milestone:
+Goal:
+Identify the smallest safe repair for a failed milestone phase using evidence from logs, failure context, server state, and project documentation.
 
-Phase:
+Context:
+- Milestone:
+- Phase:
+- Attempt:
+- Timestamp:
+- Runner:
+- Branch:
+- Commit before repair:
+- Failure context file:
+- Server log file, if applicable:
+- Original milestone prompt:
 
-Timestamp:
+Failure summary:
+- What failed:
+- First failing command:
+- Expected behavior:
+- Actual behavior:
+- Error message or symptom:
+- Is this blocking the milestone from continuing? yes/no
 
-Observed failure:
+Constraints:
+- Do not guess when evidence is missing.
+- Do not edit application code during the troubleshooting report step.
+- Do not edit `.env`, `.env.local`, `.env.agent`, API keys, tokens, or secret files.
+- Do not hardcode secrets.
+- Do not remove, skip, weaken, or bypass tests to make the pipeline pass.
+- Do not disable linting, type checking, build checks, smoke tests, or deployment checks.
+- Do not modify production targets unless explicitly required by the milestone.
+- Do not refactor unrelated code.
+- Prefer the smallest safe change.
+- If the evidence points to infrastructure, credentials, DNS, firewall, disk space, missing services, missing secrets, or server outage, stop and mark manual intervention required.
 
-Expected behavior:
+Steps:
 
-Actual behavior:
+1. Classify the failure.
 
-## 2. Scope Boundary
-
-Is this likely one of the following?
+Choose one primary category:
 
 - Application code issue
-- Validation/test issue
-- Local environment issue
+- Test or validation issue
+- Local development environment issue
+- Runner/orchestration issue
 - Deployment script issue
-- Server/runtime issue
-- DNS/network issue
-- Secrets/configuration issue
-- Database/service dependency issue
-- Permission/user/group issue
-- Disk/memory/resource issue
+- Server runtime issue
+- DNS or network issue
+- Secrets or configuration issue
+- Database or service dependency issue
+- Permission, user, or group issue
+- Disk, memory, CPU, or resource issue
+- External provider/API issue
 - Unknown
 
-Chosen category:
+Primary category:
 
-Why:
+Why this category fits:
 
-## 3. Evidence Reviewed
+Other categories considered:
 
-List the evidence reviewed before making changes.
+2. Review available evidence.
 
-- Failure context file:
-- Local logs:
-- Server logs:
-- Git diff:
+Evidence reviewed:
+
 - Git status:
-- Relevant config files:
-- Relevant application files:
-- Relevant deployment files:
+- Git diff summary:
+- Recent commits:
+- Failure context:
+- Local validation logs:
+- Local smoke logs:
+- Deployment logs:
+- Server logs:
+- Application logs:
+- Environment/config files reviewed:
+- Documentation reviewed:
+- Relevant source files reviewed:
 
-## 4. First Failing Command
+Evidence missing:
 
-Command:
+3. Identify the first real failure.
 
-Exit behavior:
+First failing command:
+
+Where it ran:
+
+Exit code, if known:
 
 Relevant output:
 
-## 5. Root Cause Hypothesis
+Is this the root failure or a downstream symptom?
+
+Reasoning:
+
+4. Form a root-cause hypothesis.
 
 Primary hypothesis:
 
 Supporting evidence:
 
-Alternative hypotheses considered:
+Alternative hypothesis 1:
 
-## 6. Safety Check Before Repair
+Why it is less likely:
 
-Before making any changes, confirm:
+Alternative hypothesis 2:
 
-- The fix is within the current milestone scope.
-- The fix does not hardcode secrets.
-- The fix does not remove or weaken tests.
-- The fix does not bypass validation.
-- The fix does not change production targets unless explicitly required.
-- The fix does not hide a real infrastructure problem.
+Why it is less likely:
 
-If any item is not true, stop and request manual intervention.
+What would confirm the primary hypothesis?
 
-## 7. Repair Plan
+5. Decide whether repair is safe to continue.
 
-Smallest safe change:
+Repair can continue? yes/no
+
+Manual intervention required? yes/no
+
+If manual intervention is required, stop here and describe exactly what the human must do:
+
+Manual action required:
+
+Reason:
+
+6. Create the repair plan.
+
+Smallest safe repair:
 
 Files expected to change:
 
-Commands to rerun:
+Files that must not change:
+
+Commands to rerun after repair:
+
+Expected result after repair:
 
 Rollback plan:
 
-## 8. Repair Result
+7. Repair result.
 
 Files changed:
 
 Commands rerun:
 
-Result:
+Results:
+
+Did the original failing phase pass after repair? yes/no
+
+Did any new failure appear? yes/no
 
 Remaining risk:
 
-## 9. Manual Intervention Required?
+8. Follow-up recommendation.
 
-Answer yes/no:
+Should a future milestone address anything discovered here? yes/no
 
-If yes, describe exactly what the human must do:
+Recommended future milestone or issue:
 
+Documentation:
+Review these before completing the report when they exist:
+
+- `CLAUDE.md`
+- `README.md`
+- `docs/dev-setup.md`
+- `docs/agent-state/current-state.md`
+- `docs/agent-state/milestones/`
+- `docs/agent-state/troubleshooting-template.md`
+- Relevant files under `scripts/`
+- Relevant app source files
+- Relevant deployment config
+- Relevant logs under `agent-logs/`
+
+Definition of done:
+- The failure is classified.
+- The first failing command is identified.
+- Evidence reviewed is listed.
+- A root-cause hypothesis is stated with supporting evidence.
+- Manual intervention is clearly marked yes/no.
+- A smallest-safe-repair plan is written.
+- No code changes are made during the troubleshooting report step.
+- The report is saved to the requested troubleshooting markdown file.
