@@ -14,6 +14,8 @@ PORT="${PORT:-8000}"
 HEALTH_PATH="${HEALTH_PATH:-/api/health}"
 BASE_URL="http://localhost:${PORT}"
 HEALTH_URL="${BASE_URL}${HEALTH_PATH}"
+READY_URL="${BASE_URL}/api/ready"
+ITEMS_URL="${BASE_URL}/api/items"
 
 cleanup() {
   if [ -n "${SERVER_PID:-}" ]; then
@@ -67,14 +69,57 @@ cd "$START_DIR"
 bash -lc "$START_CMD" &
 SERVER_PID=$!
 
+# Wait for the server to become reachable at the health endpoint
 echo "Waiting for server at $HEALTH_URL"
 for i in $(seq 1 30); do
   if curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
-    echo "Local smoke test passed: $HEALTH_URL"
-    exit 0
+    echo "Server is up."
+    break
+  fi
+  if [ "$i" -eq 30 ]; then
+    echo "Local smoke test FAILED: $HEALTH_URL did not respond after 60s."
+    exit 1
   fi
   sleep 2
 done
 
-echo "Local smoke test failed: $HEALTH_URL did not respond after 60s."
-exit 1
+# --- Health check ---
+echo ""
+echo "--- Smoke: Health ---"
+HEALTH_RESPONSE=$(curl -fsS "$HEALTH_URL")
+HEALTH_STATUS=$(echo "$HEALTH_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['status'])" 2>/dev/null || echo "FAIL")
+if [ "$HEALTH_STATUS" = "ok" ]; then
+  echo "PASS: /api/health returned status=ok"
+else
+  echo "FAIL: /api/health returned: $HEALTH_RESPONSE"
+  exit 1
+fi
+
+# --- Readiness check ---
+echo ""
+echo "--- Smoke: Readiness ---"
+READY_RESPONSE=$(curl -fsS "$READY_URL")
+READY_STATUS=$(echo "$READY_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['status'])" 2>/dev/null || echo "FAIL")
+READY_DB=$(echo "$READY_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['database'])" 2>/dev/null || echo "FAIL")
+if [ "$READY_STATUS" = "ok" ] && [ "$READY_DB" = "connected" ]; then
+  echo "PASS: /api/ready returned status=ok, database=connected"
+else
+  echo "FAIL: /api/ready returned: $READY_RESPONSE"
+  exit 1
+fi
+
+# --- Items API check ---
+echo ""
+echo "--- Smoke: Items API ---"
+ITEMS_RESPONSE=$(curl -fsS "$ITEMS_URL")
+ITEMS_COUNT=$(echo "$ITEMS_RESPONSE" | python3 -c "import sys,json; data=json.load(sys.stdin); print(len(data['items']))" 2>/dev/null || echo "FAIL")
+if [ "$ITEMS_COUNT" != "FAIL" ] && [ "$ITEMS_COUNT" -gt 0 ]; then
+  echo "PASS: /api/items returned $ITEMS_COUNT items"
+else
+  echo "FAIL: /api/items returned invalid JSON or empty list"
+  exit 1
+fi
+
+echo ""
+echo "Local smoke test PASSED."
+exit 0

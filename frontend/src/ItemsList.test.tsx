@@ -88,6 +88,11 @@ describe("ItemsList", () => {
   });
 
   it("shows loading message initially", () => {
+    // Prevent the fetch from resolving so the component stays in the loading
+    // state and no async state update fires after the test unmounts.
+    globalThis.fetch = vi.fn().mockImplementation(
+      () => new Promise<Response>(() => {}),
+    );
     render(<ItemsList />);
     expect(screen.getByText(/Loading items/i)).toBeInTheDocument();
   });

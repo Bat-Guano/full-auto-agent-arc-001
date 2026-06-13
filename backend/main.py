@@ -35,6 +35,20 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/api/ready")
+async def ready():
+    """Readiness probe: verifies the SQLite item store is reachable and queryable."""
+    try:
+        # Execute a lightweight query to confirm the database is responsive.
+        storage.get_items()
+    except Exception as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Database not ready: {e}",
+        )
+    return {"status": "ok", "database": "connected"}
+
+
 @app.get("/api/items")
 async def get_items():
     return {"items": storage.get_items()}

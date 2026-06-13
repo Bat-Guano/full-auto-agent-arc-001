@@ -26,14 +26,18 @@ my-app/
 │   ├── vite.config.ts
 │   └── tsconfig.json
 ├── backend/           # FastAPI + Python + SQLite
-│   ├── main.py            # API app with /api/health and /api/items
+│   ├── main.py            # API app with /api/health, /api/ready, /api/items
 │   ├── storage.py         # SQLite storage layer
 │   ├── conftest.py        # Test database isolation
 │   ├── test_health.py     # Health endpoint tests
+│   ├── test_readiness.py  # Readiness endpoint tests
 │   ├── test_items.py      # Items endpoint tests
 │   ├── test_persistence.py # Persistence-specific tests
 │   ├── requirements.txt
 │   └── .venv/             # Local Python venv (gitignored)
+├── .github/
+│   └── workflows/
+│       └── ci.yml         # GitHub Actions CI pipeline
 ├── scripts/
 │   ├── validate-local.sh  # Build + lint both frontend and backend
 │   └── smoke-local.sh     # Start backend and check health endpoint
@@ -66,6 +70,9 @@ Verify it works:
 ```bash
 curl http://localhost:8000/api/health
 # Expected: {"status":"ok"}
+
+curl http://localhost:8000/api/ready
+# Expected: {"status":"ok","database":"connected"}
 
 curl http://localhost:8000/api/items
 # Expected: {"items":[{"id":1,"name":"Define project scope","done":true},...]}
@@ -133,13 +140,16 @@ This runs:
 
 ### smoke-local.sh
 
-Starts the backend and checks the health endpoint:
+Starts the backend and verifies core API endpoints:
 
 ```bash
 ./scripts/smoke-local.sh
 ```
 
-This starts the FastAPI server on port 8000 and polls `/api/health` until it responds.
+This starts the FastAPI server on port 8000 and checks:
+1. `/api/health` returns `{"status": "ok"}`
+2. `/api/ready` returns `{"status": "ok", "database": "connected"}` (verifies SQLite connectivity)
+3. `/api/items` returns valid JSON with at least one item
 
 ## Environment Variables
 
@@ -153,3 +163,18 @@ For local development, no environment variables are required — the defaults wo
 | `PORT` | `8000` | Backend listen port |
 
 **Resetting the database:** Delete `backend/items.db` and restart the server — the database will be recreated with default starter items automatically.
+
+## CI/CD
+
+### GitHub Actions
+
+A CI workflow (`.github/workflows/ci.yml`) runs on every push and pull request to `main`:
+
+- **Frontend job**: installs dependencies, runs lint, typecheck, test, and build
+- **Backend job**: sets up a Python venv, installs dependencies, and runs pytest
+
+The CI pipeline mirrors `scripts/validate-local.sh` but does not deploy. No secrets or external services are required.
+
+### Production-readiness checks
+
+The `GET /api/ready` endpoint serves as a readiness probe for orchestration (e.g., Kubernetes readiness probes, load balancer health checks). It verifies that the SQLite database is reachable and queryable, returning 503 if it is not. Combine with `/api/health` (liveness) for a complete probe pair.
