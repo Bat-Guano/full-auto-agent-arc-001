@@ -8,5 +8,14 @@ agent-logs/
 *.server-tail.log
 *.failure-context.md
 
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Backend
+backend/.venv/
+backend/__pycache__/
+*.pyc
+
 # Local agent environment
 .env.agent

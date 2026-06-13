@@ -3,7 +3,14 @@ set -euo pipefail
 
 echo "=== validate-local ==="
 
-if [ -f package.json ]; then
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+
+# --- Frontend validation ---
+if [ -f "$ROOT_DIR/frontend/package.json" ]; then
+  echo "--- Validating frontend ---"
+  cd "$ROOT_DIR/frontend"
+
   if [ -f pnpm-lock.yaml ]; then
     corepack enable || true
     pnpm install
@@ -25,18 +32,27 @@ if [ -f package.json ]; then
     npm test --if-present
     npm run build --if-present
   fi
+
+  echo "--- Frontend validation complete ---"
 fi
 
-if [ -f pyproject.toml ] || [ -f requirements.txt ]; then
+# --- Backend validation ---
+if [ -f "$ROOT_DIR/backend/pyproject.toml" ] || [ -f "$ROOT_DIR/backend/requirements.txt" ]; then
+  echo "--- Validating backend ---"
+  cd "$ROOT_DIR/backend"
+
   if [ -f pyproject.toml ] && command -v uv >/dev/null 2>&1; then
     uv sync || true
     uv run pytest || true
   elif [ -f requirements.txt ]; then
-    python3 -m venv .venv
-    . .venv/bin/activate
-    pip install -r requirements.txt
-    pytest || true
+    if [ ! -d .venv ]; then
+      python3 -m venv .venv
+    fi
+    ./.venv/bin/pip install -r requirements.txt
+    ./.venv/bin/pytest || true
   fi
+
+  echo "--- Backend validation complete ---"
 fi
 
 echo "validate-local complete"
