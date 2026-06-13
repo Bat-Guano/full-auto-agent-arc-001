@@ -78,6 +78,19 @@ log_section() {
   } >> "$file"
 }
 
+# Resolve the best available path for a milestone prompt.
+# Prefers the active prompt; falls back to the archived copy.
+# Returns an empty string if neither exists.
+resolve_prompt() {
+  local name="$1"
+
+  if [ -f "prompts/${name}.md" ]; then
+    echo "prompts/${name}.md"
+  elif [ -f "prompts/done/${name}.md" ]; then
+    echo "prompts/done/${name}.md"
+  fi
+}
+
 if ! command -v "$CLAUDE_CMD" >/dev/null 2>&1; then
   echo "$CLAUDE_CMD command not found."
   echo "Set CLAUDE_CMD in .env.agent or ensure the command is on PATH."
@@ -128,6 +141,13 @@ fi
 
 build_milestone_prompt() {
   local prompt="$1"
+  local name
+  name="$(basename "$prompt" .md)"
+  local resolved
+  resolved="$(resolve_prompt "$name")"
+  if [ -z "$resolved" ]; then
+    resolved="$prompt"
+  fi
 
   cat <<EOF_PROMPT
 You are Claude Code working in this repository.
@@ -157,7 +177,7 @@ The current milestone prompt should follow the user's Matt Pocock slash-command 
 - /prototype for throwaway exploration.
 
 Current milestone prompt:
-$(cat "$prompt")
+$(cat "$resolved")
 
 Global execution rules:
 - Keep the change bounded to this milestone.
@@ -182,6 +202,11 @@ EOF_PROMPT
 generate_handoff() {
   local name="$1"
   local prompt="$2"
+  local resolved
+  resolved="$(resolve_prompt "$name")"
+  if [ -z "$resolved" ]; then
+    resolved="$prompt"
+  fi
 
   mkdir -p docs/agent-state/milestones
 
@@ -199,7 +224,7 @@ Milestone name:
 $name
 
 Original milestone prompt:
-$(cat "$prompt")
+$(cat "$resolved")
 
 Current git status:
 $(git status --short)
@@ -249,23 +274,28 @@ Definition of done:
 
 archive_prompt() {
   local name="$1"
-  local prompt="$2"
 
   echo "=== Archiving completed prompt for $name ==="
   mkdir -p prompts/done
 
-  local archived_prompt="prompts/done/$(basename "$prompt")"
+  local active_prompt="prompts/${name}.md"
+  local archived_prompt="prompts/done/${name}.md"
 
-  if [ -e "$archived_prompt" ]; then
-    local timestamp
-    timestamp="$(date +%Y%m%d-%H%M%S)"
-    archived_prompt="prompts/done/${name}-${timestamp}.md"
+  if [ -f "$active_prompt" ]; then
+    if [ -e "$archived_prompt" ]; then
+      local timestamp
+      timestamp="$(date +%Y%m%d-%H%M%S)"
+      archived_prompt="prompts/done/${name}-${timestamp}.md"
+    fi
+    mv "$active_prompt" "$archived_prompt"
+    echo "Archived prompt:"
+    echo "  $archived_prompt"
+  elif [ -f "$archived_prompt" ]; then
+    echo "Prompt already archived:"
+    echo "  $archived_prompt"
+  else
+    echo "Warning: Neither active nor archived prompt found for $name"
   fi
-
-  mv "$prompt" "$archived_prompt"
-
-  echo "Archived prompt:"
-  echo "  $archived_prompt"
 }
 
 publish_milestone() {
@@ -329,6 +359,11 @@ repair_with_claude() {
   local prompt="$2"
   local phase="$3"
   local attempt="$4"
+  local resolved
+  resolved="$(resolve_prompt "$name")"
+  if [ -z "$resolved" ]; then
+    resolved="$prompt"
+  fi
   local context_file="agent-logs/${name}.${phase}.attempt-${attempt}.failure-context.md"
   local troubleshooting_file="agent-logs/${name}.${phase}.attempt-${attempt}.troubleshooting.md"
 
@@ -366,7 +401,7 @@ Repair attempt:
 $attempt
 
 Original milestone prompt:
-$(cat "$prompt")
+$(cat "$resolved")
 
 Failure context:
 $(cat "$context_file")
@@ -463,7 +498,7 @@ Repair attempt:
 $attempt
 
 Original milestone prompt:
-$(cat "$prompt")
+$(cat "$resolved")
 
 Failure context:
 $(cat "$context_file")
@@ -567,7 +602,7 @@ for prompt in prompts/milestone-*.md; do
   fi
 
   generate_handoff "$name" "$prompt"
-  archive_prompt "$name" "$prompt"
+  archive_prompt "$name"
 
   if ! git diff --quiet || ! git diff --cached --quiet; then
     git add .
