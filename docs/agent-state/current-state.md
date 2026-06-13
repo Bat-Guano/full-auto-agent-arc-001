@@ -18,7 +18,7 @@ This repository is an **agent-driven CI/CD harness** that now contains a **full-
 ## Architecture Notes
 
 - **Frontend** (`frontend/`): Vite dev server on port 5173, proxies `/api` to backend port 8000. Production build outputs to `frontend/dist/`. Scripts: `dev`, `build` (tsc + vite build), `lint` (eslint flat config), `typecheck` (tsc --noEmit), `test` (vitest run). Components: `App.tsx` (landing page + status), `ItemsList.tsx` (fetches/displays `/api/items`, includes inline creation form, inline toggle and delete controls).
-- **Backend** (`backend/`): Single-file FastAPI app in `main.py`. CORS configured for `http://localhost:5173`. Endpoints: `GET /api/health` → `{"status": "ok"}`, `GET /api/items` → `{"items": [...]}`, `POST /api/items` (body: `{name, done?}`, returns 201), `PATCH /api/items/{item_id}` (body: `{name?, done?}`, partial update), `DELETE /api/items/{item_id}` (returns deleted item). Items stored in-memory with auto-incrementing IDs. Pydantic models: `CreateItemRequest` (name: required, done: optional), `UpdateItemRequest` (name: optional, done: optional — both with client-controlled semantics for partial updates).
+- **Backend** (`backend/`): FastAPI app split across `main.py` (routes + models) and `storage.py` (SQLite persistence). CORS configured for `http://localhost:5173`. Endpoints: `GET /api/health` → `{"status": "ok"}`, `GET /api/items` → `{"items": [...]}`, `POST /api/items` (body: `{name, done?}`, returns 201), `PATCH /api/items/{item_id}` (body: `{name?, done?}`, partial update), `DELETE /api/items/{item_id}` (returns deleted item). Items stored in SQLite (`./items.db` by default, overridable via `ITEMS_DB_PATH` env var) with auto-incrementing IDs. Database initialised and seeded with four default starter items on first import. Pydantic models: `CreateItemRequest` (name: required, done: optional), `UpdateItemRequest` (name: optional, done: optional — both with client-controlled semantics for partial updates).
 - **App.tsx** (`frontend/src/App.tsx`): Landing page that fetches `/api/health` on mount, displays API status (ok / error / pending), and renders `<ItemsList />` in a side-by-side card layout.
 - **ItemsList.tsx** (`frontend/src/ItemsList.tsx`): Full CRUD UI for items. Fetches `/api/items` on mount, renders loading/error/success states as a `<ul>`. Features: inline form (text input + "Add" button) to create items via POST; checkbox on each item to toggle done status via PATCH; "Delete" button on each item to remove via DELETE; per-action error messages rendered as `<p role="alert">`. Done items styled with `.item-done` (green, line-through); pending items styled with `.item-pending`.
 - **Harness scripts** auto-detect ecosystem in subdirectories (`frontend/`, `backend/`), not in the repo root.
@@ -32,6 +32,7 @@ This repository is an **agent-driven CI/CD harness** that now contains a **full-
 - **Milestone 04** — Complete. Domain feature slice added: `GET /api/items` endpoint with pytest test, `ItemsList` component with Vitest tests, wired into `App.tsx`. React act() warnings cleaned up in `App.test.tsx`. TestClient deprecation documented as follow-up.
 - **Milestone 05** — Complete. Item mutation added: `POST /api/items` endpoint with Pydantic validation, 5 new backend tests, inline creation form in `ItemsList.tsx`, 4 new frontend form tests (`fireEvent`-based, no extra deps). Auto-incrementing IDs for new items.
 - **Milestone 06** — Complete. Item update and delete mutations added: `PATCH /api/items/{item_id}` (partial update via `UpdateItemRequest`), `DELETE /api/items/{item_id}`. 7 new backend tests (4 PATCH + 3 DELETE), 6 new frontend tests for toggle/delete controls and error handling. Inline checkbox toggle and delete button in `ItemsList.tsx`. Full CRUD now supported end-to-end.
+- **Milestone 07** — Complete. SQLite persistence added: `backend/storage.py` module with `init_db`, `seed_if_empty`, `get_items`, `create_item`, `update_item`, `delete_item`. Database path configurable via `ITEMS_DB_PATH` env var (default `./items.db`). `conftest.py` isolates tests with a temp database. 6 new persistence tests (`test_persistence.py`). Existing tests updated to verify state via API instead of direct `ITEMS` access. Items survive server restarts when the same database path is used.
 - **Deployment** — Disabled (`DEPLOY_STAGING=false` in `.env.agent`).
 
 ## Validation Commands
@@ -48,7 +49,7 @@ This repository is an **agent-driven CI/CD harness** that now contains a **full-
 
 ```bash
 cd frontend && npm test       # Frontend tests: 18 (4 App + 14 ItemsList)
-cd backend && source .venv/bin/activate && pytest  # Backend tests: 14 (1 health + 13 items)
+cd backend && source .venv/bin/activate && pytest  # Backend tests: 20 (1 health + 13 items + 6 persistence)
 ```
 
 ## Known Issues
@@ -57,12 +58,12 @@ cd backend && source .venv/bin/activate && pytest  # Backend tests: 14 (1 health
 - **Staging deployment**: Not configured (`DEPLOY_STAGING=false`, staging env vars empty).
 - **smoke-local.sh non-reload mode**: Starts uvicorn without `--reload` since it's a one-shot health check, not a dev server.
 - **Starlette TestClient uses httpx, not httpx2**: `starlette.testclient` prefers `httpx2` over `httpx`. Currently using `httpx>=0.28.0` in `requirements.txt`. The deprecation warning is non-blocking but should be addressed when `httpx2` stabilizes.
-- **No persistence**: Items are stored in-memory and reset on server restart. A database (SQLite or PostgreSQL) should be added when persistence is needed.
+- **SQLite persistence added (milestone-07)**: Items persist in `./items.db` (configurable via `ITEMS_DB_PATH`). To reset, delete the database file. Different `ITEMS_DB_PATH` values effectively create separate databases.
 - **Inline form and controls in ItemsList**: The creation form, toggle checkbox, and delete button all live inside `ItemsList.tsx` rather than separate components. This is acceptable at current complexity but should be extracted if component size grows (e.g., inline editing, confirmation dialogs, or validation feedback).
 
 ## Next Recommended Milestone
 
-**Milestone 07 — Add a database for persistence.** Replace in-memory storage with SQLite or PostgreSQL. Add database migrations, connection management, and update tests to use a test database. Alternatively, address npm vulnerabilities and CI pipeline setup.
+**Milestone 08 — Production-readiness gates.** Per `prompts/milestone-08.md`: add a `GET /api/ready` endpoint that verifies SQLite connectivity, strengthen `scripts/smoke-local.sh` to check health + readiness + items API, add a GitHub Actions CI workflow (`.github/workflows/ci.yml`) mirroring local validation without deploying, and fix the remaining React `act(...)` warning in the frontend loading-state test. This milestone hardens the workflow for production-style deployment without adding secrets, paid services, or external databases.
 
 ## Rules for the Next Agent
 

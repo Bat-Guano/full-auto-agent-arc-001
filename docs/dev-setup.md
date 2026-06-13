@@ -25,10 +25,13 @@ my-app/
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── tsconfig.json
-├── backend/           # FastAPI + Python
+├── backend/           # FastAPI + Python + SQLite
 │   ├── main.py            # API app with /api/health and /api/items
+│   ├── storage.py         # SQLite storage layer
+│   ├── conftest.py        # Test database isolation
 │   ├── test_health.py     # Health endpoint tests
 │   ├── test_items.py      # Items endpoint tests
+│   ├── test_persistence.py # Persistence-specific tests
 │   ├── requirements.txt
 │   └── .venv/             # Local Python venv (gitignored)
 ├── scripts/
@@ -143,3 +146,10 @@ This starts the FastAPI server on port 8000 and polls `/api/health` until it res
 The application uses `.env.agent` for agent automation. Do not commit this file.
 
 For local development, no environment variables are required — the defaults work out of the box.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ITEMS_DB_PATH` | `./items.db` (relative to `backend/`) | SQLite database file path for item storage |
+| `PORT` | `8000` | Backend listen port |
+
+**Resetting the database:** Delete `backend/items.db` and restart the server — the database will be recreated with default starter items automatically.

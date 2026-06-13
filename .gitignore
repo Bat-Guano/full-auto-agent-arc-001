@@ -16,6 +16,7 @@ frontend/dist/
 backend/.venv/
 backend/__pycache__/
 *.pyc
+backend/*.db
 
 # Local agent environment
 .env.agent

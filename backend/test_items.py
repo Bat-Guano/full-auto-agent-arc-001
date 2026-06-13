@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from main import app, ITEMS
+from main import app
 
 client = TestClient(app)
 
@@ -20,7 +20,8 @@ def test_items_returns_200_and_list():
 
 
 def test_create_item_returns_201_and_item():
-    initial_count = len(ITEMS)
+    initial = client.get("/api/items").json()["items"]
+    initial_count = len(initial)
 
     response = client.post("/api/items", json={"name": "Test item"})
     assert response.status_code == 201
@@ -31,9 +32,10 @@ def test_create_item_returns_201_and_item():
     assert "id" in body
     assert isinstance(body["id"], int)
 
-    # Verify it was appended to the list
-    assert len(ITEMS) == initial_count + 1
-    assert ITEMS[-1]["name"] == "Test item"
+    # Verify it was appended to the database
+    after = client.get("/api/items").json()["items"]
+    assert len(after) == initial_count + 1
+    assert after[-1]["name"] == "Test item"
 
 
 def test_create_item_with_done_true():
@@ -82,8 +84,10 @@ def test_update_item_name_returns_200_and_updated_item():
     assert body["name"] == "Updated name"
     assert body["done"] is True  # unchanged
 
-    # Verify in-memory state was updated
-    item = next(i for i in ITEMS if i["id"] == 1)
+    # Verify state was persisted via a GET
+    get_resp = client.get("/api/items")
+    items = get_resp.json()["items"]
+    item = next(i for i in items if i["id"] == 1)
     assert item["name"] == "Updated name"
     assert item["done"] is True
 
@@ -97,8 +101,10 @@ def test_update_item_done_returns_200_and_toggled_item():
     assert body["done"] is True
     assert body["name"] == "Add domain feature"  # unchanged
 
-    # Verify in-memory state was updated
-    item = next(i for i in ITEMS if i["id"] == 4)
+    # Verify state was persisted via a GET
+    get_resp = client.get("/api/items")
+    items = get_resp.json()["items"]
+    item = next(i for i in items if i["id"] == 4)
     assert item["done"] is True
 
 
@@ -116,7 +122,8 @@ def test_update_item_empty_name_returns_422():
 
 
 def test_delete_item_returns_200():
-    initial_count = len(ITEMS)
+    initial = client.get("/api/items").json()["items"]
+    initial_count = len(initial)
 
     response = client.delete("/api/items/1")
     assert response.status_code == 200
@@ -125,9 +132,10 @@ def test_delete_item_returns_200():
     assert body["id"] == 1
     assert "name" in body
 
-    # Verify it was removed from the list
-    assert len(ITEMS) == initial_count - 1
-    ids = [i["id"] for i in ITEMS]
+    # Verify it was removed from the database
+    after = client.get("/api/items").json()["items"]
+    assert len(after) == initial_count - 1
+    ids = [i["id"] for i in after]
     assert 1 not in ids
 
 
