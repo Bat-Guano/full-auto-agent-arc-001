@@ -37,6 +37,9 @@ DEPLOY_STAGING="${DEPLOY_STAGING:-false}"
 CLAUDE_PERMISSION_MODE="${CLAUDE_PERMISSION_MODE:-acceptEdits}"
 AGENT_BRANCH="${AGENT_BRANCH:-agent/sequential-run}"
 REMOTE_NAME="${REMOTE_NAME:-origin}"
+PUSH_AFTER_MILESTONE="${PUSH_AFTER_MILESTONE:-true}"
+PUBLISH_MAIN="${PUBLISH_MAIN:-true}"
+MAIN_BRANCH="${MAIN_BRANCH:-main}"
 CLAUDE_CMD="${CLAUDE_CMD:-claude-deepseek}"
 
 mkdir -p agent-logs
@@ -53,6 +56,9 @@ RUN_LOG="agent-logs/run-history.log"
   echo "Run id: $RUN_STARTED_AT"
   echo "Branch target: $AGENT_BRANCH"
   echo "Deploy staging: $DEPLOY_STAGING"
+  echo "Push after milestone: $PUSH_AFTER_MILESTONE"
+  echo "Publish main: $PUBLISH_MAIN"
+  echo "Main branch: $MAIN_BRANCH"
   echo "Max repairs: $MAX_REPAIRS"
   echo "Claude command: $CLAUDE_CMD"
   echo "================================================================"
@@ -260,6 +266,62 @@ archive_prompt() {
 
   echo "Archived prompt:"
   echo "  $archived_prompt"
+}
+
+publish_milestone() {
+  local name="$1"
+
+  if [ "$PUSH_AFTER_MILESTONE" != "true" ]; then
+    echo "=== PUSH_AFTER_MILESTONE is false; skipping publish for $name ==="
+    return 0
+  fi
+
+  echo "=== Publishing $name ==="
+  log_section "agent-logs/${name}.publish.log" "Publish: $name"
+
+  local current_branch
+  current_branch="$(git branch --show-current)"
+  echo "Current branch: $current_branch"
+
+  # Push the current (agent) branch
+  echo "Pushing $current_branch to $REMOTE_NAME..."
+  if ! git push -u "$REMOTE_NAME" "$current_branch" 2>&1; then
+    echo "ERROR: Failed to push $current_branch to $REMOTE_NAME."
+    echo "Check authentication and network connectivity."
+    return 1
+  fi
+  echo "Pushed $current_branch."
+
+  if [ "$PUBLISH_MAIN" = "true" ]; then
+    echo "=== Publishing $MAIN_BRANCH (fast-forward only) ==="
+
+    git checkout "$MAIN_BRANCH"
+
+    echo "Fast-forwarding $MAIN_BRANCH from $current_branch..."
+    if ! git merge --ff-only "$current_branch" 2>&1; then
+      echo "ERROR: Fast-forward merge of $current_branch into $MAIN_BRANCH failed."
+      echo "This may indicate $MAIN_BRANCH has diverged from $current_branch."
+      git checkout "$current_branch"
+      return 1
+    fi
+
+    echo "Pushing $MAIN_BRANCH to $REMOTE_NAME..."
+    if ! git push -u "$REMOTE_NAME" "$MAIN_BRANCH" 2>&1; then
+      echo "ERROR: Failed to push $MAIN_BRANCH to $REMOTE_NAME."
+      echo "Check authentication and network connectivity."
+      git checkout "$current_branch"
+      return 1
+    fi
+    echo "Pushed $MAIN_BRANCH."
+
+    echo "Switching back to $current_branch..."
+    git checkout "$current_branch"
+  else
+    echo "=== PUBLISH_MAIN is false; skipping main publish ==="
+  fi
+
+  echo "=== Publish complete for $name ==="
+  return 0
 }
 
 repair_with_claude() {
@@ -513,6 +575,8 @@ for prompt in prompts/milestone-*.md; do
   else
     echo "No changes to commit for $name"
   fi
+
+  publish_milestone "$name"
 
   echo "=== Finished $name ==="
 done
