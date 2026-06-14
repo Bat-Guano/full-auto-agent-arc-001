@@ -11,7 +11,7 @@ This repository is an **agent-driven CI/CD harness** that now contains a **full-
 | Frontend | Vite 7 + React 19 + TypeScript 5.9 | `frontend/package.json`, `frontend/vite.config.ts` |
 | Backend | FastAPI 0.136 + Python 3.12 + Uvicorn 0.49 | `backend/main.py`, `backend/requirements.txt` |
 | Frontend testing | Vitest 3 + React Testing Library 16 + jsdom 26 | `frontend/src/App.test.tsx`, `frontend/src/ItemsList.test.tsx`, `frontend/src/test-setup.ts` |
-| Backend testing | pytest 8 + httpx + FastAPI TestClient | `backend/test_health.py`, `backend/test_items.py`, `backend/test_readiness.py` |
+| Backend testing | pytest 8 + httpx2 + FastAPI TestClient | `backend/test_health.py`, `backend/test_items.py`, `backend/test_readiness.py` |
 | Frontend package manager | npm | `frontend/package.json` (lockfile committed) |
 | Backend package manager | pip + venv | `backend/requirements.txt` |
 
@@ -46,6 +46,12 @@ This repository is an **agent-driven CI/CD harness** that now contains a **full-
   - Improved empty state — "No items yet. Add one above." message when items list is empty.
   - Polished CSS: new button classes for edit/save/cancel/confirm-delete/cancel-delete, disabled states, hover effects, edit input styling, confirmation text styling, empty message styling.
   - 6 new frontend tests: inline editing (enter edit, save, cancel, error on update failure) + delete confirmation (confirm, cancel). ItemsList tests grew from 14 to 20, total frontend tests from 18 to 24. Backend unchanged (22 tests).
+- **Milestone 10** — Complete. Dependency and security hardening:
+  - Fixed Starlette httpx deprecation: `requirements.txt` updated from `httpx>=0.28.0` to `httpx2>=2.0.0`. httpx2 2.4.0 installed. No deprecation warnings in pytest output.
+  - Regenerated `frontend/package-lock.json` for fresh dependency resolution (267 packages).
+  - `npm audit fix` (without `--force`) applied 0 changes — no semver-compatible fixes exist for remaining vulnerabilities.
+  - 5 high-severity npm vulnerabilities remain, all from the esbuild → vite → vitest chain. Root cause: esbuild < 0.28.0 (locked at 0.27.7 via vite 7.3.5). Fix requires vite ^8.0.16 (breaking change). Documented with advisory URLs, risk assessment, and upgrade path. See `docs/agent-state/milestones/milestone-10.md` for full vulnerability table.
+  - validate-local and smoke-local both pass cleanly.
 - **Deployment** — Disabled (`DEPLOY_STAGING=false` in `.env.agent`).
 
 ## Test Counts
@@ -74,18 +80,17 @@ cd backend && source .venv/bin/activate && pytest  # Backend tests: 22 (1 health
 
 ## Known Issues
 
-- **npm vulnerabilities**: 2 high severity vulnerabilities reported on `npm install`. Targeted by milestone-10.
-- **Starlette `httpx` deprecation**: `starlette.testclient` prefers `httpx2` over `httpx`. Currently using `httpx>=0.28.0` in `requirements.txt`. The deprecation warning is non-blocking. Targeted by milestone-10.
+- **npm vulnerabilities (5 high)**: All from esbuild < 0.28.0 in the Vite toolchain (`vite 7.3.5` → `esbuild 0.27.7`). Fix requires vite 8.0.16+ (breaking change, needs `npm audit fix --force`). Details: GHSA-gv7w-rqvm-qjhr (Deno RCE via `NPM_CONFIG_REGISTRY`) and GHSA-g7r4-m6w7-qqqr (Windows dev server file read). Both are dev-tooling issues, not production runtime risks. Linux-only project; Windows advisory not applicable. Documented in `docs/agent-state/milestones/milestone-10.md`. Recommendation: defer vite upgrade to m12+.
 - **Staging deployment**: Not configured (`DEPLOY_STAGING=false`, staging env vars empty). Targeted by milestone-11.
 - **smoke-local.sh non-reload mode**: Starts uvicorn without `--reload` since it's a one-shot health check, not a dev server.
-- **CI detects npm vulnerabilities but does not fail on them**: The GitHub Actions workflow runs `npm ci` which reports the 2 high-severity advisories but does not block the pipeline.
+- **CI detects npm vulnerabilities but does not fail on them**: The GitHub Actions workflow runs `npm ci` which reports the 5 high-severity advisories but does not block the pipeline.
 - **Per-request SQLite connections**: Fine for low-traffic dev; connection pooling would help under concurrency.
 
 ## Next Recommended Milestone
 
-**Milestone 10 — Dependency and Security Hardening** (`prompts/milestone-10.md`): Investigate and safely reduce npm audit warnings and address the Starlette `httpx`/`httpx2` deprecation. Use safe remediation (`npm audit fix` without `--force`, targeted non-breaking upgrades). Document any vulnerabilities that cannot be safely fixed. Preserve all application behavior and tests.
+**Milestone 11 — Staging/Deployment Readiness** (`prompts/milestone-11.md`): Enable and harden the staging deployment pipeline, configure SSH deploy, and verify smoke-staging passes.
 
-Milestone 11 (`prompts/milestone-11.md`) follows with staging/deployment readiness hardening.
+Milestone 12+ could tackle the vite 8.x upgrade to resolve the remaining npm vulnerabilities (requires isolated testing of build output and dev server).
 
 ## Rules for the Next Agent
 
@@ -101,3 +106,4 @@ Milestone 11 (`prompts/milestone-11.md`) follows with staging/deployment readine
 - The frontend is in `frontend/`, backend in `backend/` — scripts reference these subdirectories, not the repo root.
 - `ItemRow.tsx` is the row-level presentational component; `ItemsList.tsx` is the container. Keep this separation — add new per-item features to `ItemRow.tsx`.
 - When adding tests, use `fireEvent` for all interactions, `aria-label` for targeting, and progressive mock helpers as established in `ItemsList.test.tsx`.
+- 5 high npm vulnerabilities are documented and accepted as known issues (esbuild→vite chain, requires breaking vite upgrade). Do not re-investigate unless a new advisory appears.
