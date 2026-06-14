@@ -52,7 +52,12 @@ This repository is an **agent-driven CI/CD harness** that now contains a **full-
   - `npm audit fix` (without `--force`) applied 0 changes — no semver-compatible fixes exist for remaining vulnerabilities.
   - 5 high-severity npm vulnerabilities remain, all from the esbuild → vite → vitest chain. Root cause: esbuild < 0.28.0 (locked at 0.27.7 via vite 7.3.5). Fix requires vite ^8.0.16 (breaking change). Documented with advisory URLs, risk assessment, and upgrade path. See `docs/agent-state/milestones/milestone-10.md` for full vulnerability table.
   - validate-local and smoke-local both pass cleanly.
-- **Deployment** — Disabled (`DEPLOY_STAGING=false` in `.env.agent`).
+- **Milestone 11** — Complete. Staging/Deployment readiness hardening:
+  - Created `scripts/staging-preflight.sh` (160 lines) — validates staging env vars without printing secrets, three modes (all/`--deploy`/`--smoke`), DEPLOY_STAGING flag awareness, actionable guidance on missing vars, exit codes 0/1/2.
+  - All three staging scripts pass `bash -n` syntax checks.
+  - `deploy-staging.sh` and `smoke-staging.sh` still use `:?` hard-fail — dry-run modes deferred to milestone-12.
+  - See `docs/agent-state/milestones/milestone-11.md` for full details.
+- **Deployment** — Disabled (`DEPLOY_STAGING=false` in `.env.agent`). Preflight check available to validate staging readiness.
 
 ## Test Counts
 
@@ -68,8 +73,9 @@ This repository is an **agent-driven CI/CD harness** that now contains a **full-
 | `scripts/validate-local.sh` | Full validation: frontend (npm install, lint, typecheck, test, build) + backend (venv setup, pip install, pytest) |
 | `scripts/smoke-local.sh` | Start backend, check `/api/health`, `/api/ready`, and `/api/items` |
 | `scripts/run-milestones.sh` | Run all milestones sequentially |
-| `scripts/deploy-staging.sh` | Push branch, SSH deploy, build, restart via pm2 (disabled) |
-| `scripts/smoke-staging.sh` | Poll staging health endpoint (disabled) |
+| `scripts/staging-preflight.sh` | Validate staging env vars (no secrets printed). Modes: default, `--deploy`, `--smoke` |
+| `scripts/deploy-staging.sh` | Push branch, SSH deploy, build, restart via pm2 (disabled; dry-run pending m12) |
+| `scripts/smoke-staging.sh` | Poll staging health endpoint (disabled; graceful skip pending m12) |
 
 ## Quick Test Commands
 
@@ -81,16 +87,16 @@ cd backend && source .venv/bin/activate && pytest  # Backend tests: 22 (1 health
 ## Known Issues
 
 - **npm vulnerabilities (5 high)**: All from esbuild < 0.28.0 in the Vite toolchain (`vite 7.3.5` → `esbuild 0.27.7`). Fix requires vite 8.0.16+ (breaking change, needs `npm audit fix --force`). Details: GHSA-gv7w-rqvm-qjhr (Deno RCE via `NPM_CONFIG_REGISTRY`) and GHSA-g7r4-m6w7-qqqr (Windows dev server file read). Both are dev-tooling issues, not production runtime risks. Linux-only project; Windows advisory not applicable. Documented in `docs/agent-state/milestones/milestone-10.md`. Recommendation: defer vite upgrade to m12+.
-- **Staging deployment**: Not configured (`DEPLOY_STAGING=false`, staging env vars empty). Targeted by milestone-11.
+- **Staging deployment**: Not configured (`DEPLOY_STAGING=false`, staging env vars empty). Preflight check available (`scripts/staging-preflight.sh`) — validates readiness without printing secrets. `deploy-staging.sh` and `smoke-staging.sh` still use `:?` hard-fail when vars are missing — dry-run modes targeted by milestone-12.
 - **smoke-local.sh non-reload mode**: Starts uvicorn without `--reload` since it's a one-shot health check, not a dev server.
 - **CI detects npm vulnerabilities but does not fail on them**: The GitHub Actions workflow runs `npm ci` which reports the 5 high-severity advisories but does not block the pipeline.
 - **Per-request SQLite connections**: Fine for low-traffic dev; connection pooling would help under concurrency.
 
 ## Next Recommended Milestone
 
-**Milestone 11 — Staging/Deployment Readiness** (`prompts/milestone-11.md`): Enable and harden the staging deployment pipeline, configure SSH deploy, and verify smoke-staging passes.
+**Milestone 12 — Staging dry-run modes** (`prompts/milestone-12.md`): Add `--dry-run` flag to `deploy-staging.sh` (run preflight + print what would happen without actually deploying), update `smoke-staging.sh` to gracefully skip when `STAGING_URL` is unset (with a clear message), create `docs/staging-setup.md` with end-to-end configuration guide, write shell-level tests for the preflight script.
 
-Milestone 12+ could tackle the vite 8.x upgrade to resolve the remaining npm vulnerabilities (requires isolated testing of build output and dev server).
+**Milestone 13 — Vite 8.x upgrade**: Resolve the 5 remaining high-severity npm vulnerabilities by upgrading vite to ^8.0.16 (brings esbuild ≥ 0.28.0). Requires isolated testing of build output and dev server behavior.
 
 ## Rules for the Next Agent
 
